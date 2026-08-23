@@ -200,7 +200,7 @@ export const PatientsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
       {/* Toast Feedback Notification */}
       {toastMessage && (
         <div className="p-3 bg-[#E8F8F6] border border-[#00A99D]/40 text-[#00A99D] rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
@@ -212,28 +212,28 @@ export const PatientsView: React.FC = () => {
       )}
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-[#DDE8E8] shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white px-4 py-2.5 rounded-xl border border-[#DDE8E8] shadow-xs">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#16313A] tracking-tight">Migrant Workers</h2>
-            <span className="px-2.5 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-xs font-semibold rounded-full border border-[#00A99D]/30 font-mono">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-[#16313A] tracking-tight">Migrant Workers</h2>
+            <span className="px-2 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-[11px] font-semibold rounded-full border border-[#00A99D]/30 font-mono">
               {patients.length} Registered
             </span>
           </div>
-          <p className="text-[#61747B] text-xs mt-0.5">
-            Manage registered migrant workers and their digital health records across Kerala healthcare facilities.
+          <p className="text-[#61747B] text-[11px]">
+            Manage registered migrant workers and digital health records across Kerala healthcare facilities.
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowVerifyModal(true)}
-            className="px-3.5 py-2 bg-white hover:bg-[#F0FAF8] text-[#00A99D] font-semibold rounded-xl text-xs border border-[#00A99D] transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+            className="px-3 py-1.5 bg-white hover:bg-[#F0FAF8] text-[#00A99D] font-semibold rounded-lg text-xs border border-[#00A99D] transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
           >
             <span>📱 Verify Health ID</span>
           </button>
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2 bg-[#00A99D] hover:bg-[#008F83] text-white font-semibold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+            className="px-3.5 py-1.5 bg-[#00A99D] hover:bg-[#008F83] text-white font-semibold rounded-lg text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
           >
             <span>+ Add New Patient</span>
           </button>
@@ -241,15 +241,15 @@ export const PatientsView: React.FC = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 bg-white p-3 rounded-xl border border-[#DDE8E8] shadow-xs">
-        <div className="flex flex-col sm:flex-row flex-1 gap-2.5 items-center">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-[#DDE8E8] shadow-xs">
+        <div className="flex flex-col sm:flex-row flex-1 gap-2 items-center">
           <div className="relative flex-1 w-full">
             <input
               type="text"
               placeholder="Search worker name, Health ID (e.g. KMH-2026-00001), or district..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white text-[#16313A] placeholder-[#61747B] pl-9 pr-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D]"
+              className="w-full bg-white text-[#16313A] placeholder-[#61747B] pl-8 pr-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D]"
             />
             <span className="absolute left-2.5 top-2 text-[#61747B] text-xs">🔍</span>
           </div>
@@ -257,9 +257,9 @@ export const PatientsView: React.FC = () => {
           <select
             value={selectedState}
             onChange={(e) => setSelectedState(e.target.value)}
-            className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[150px]"
+            className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[140px]"
           >
-            <option value="">All States of Origin</option>
+            <option value="">All States</option>
             {statesOfOrigin.map((state) => (
               <option key={state} value={state}>
                 {state}
@@ -270,22 +270,22 @@ export const PatientsView: React.FC = () => {
           <select
             value={alertFilter}
             onChange={(e) => setAlertFilter(e.target.value)}
-            className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[170px]"
+            className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[160px]"
           >
-            <option value="ALL">All Health Risk Statuses</option>
-            <option value="ALERTS_ONLY">⚠️ Active Health Alerts (High/Med)</option>
-            <option value="HIGH_ONLY">🔴 High Severity Warnings Only</option>
+            <option value="ALL">All Risk Statuses</option>
+            <option value="ALERTS_ONLY">⚠️ Active Alerts</option>
+            <option value="HIGH_ONLY">🔴 High Severity</option>
           </select>
         </div>
 
-        <div className="flex items-center justify-between md:justify-end gap-2.5 pt-1.5 md:pt-0 border-t md:border-t-0 border-[#DDE8E8]">
+        <div className="flex items-center justify-between md:justify-end gap-2 pt-1 md:pt-0 border-t md:border-t-0 border-[#DDE8E8]">
           <span className="text-[11px] text-[#61747B] font-mono whitespace-nowrap">
             Showing {filteredPatients.length} of {patients.length} workers
           </span>
           {(searchQuery || selectedState || alertFilter !== 'ALL') && (
             <button
               onClick={handleResetFilters}
-              className="px-2.5 py-1 bg-[#F8FAFA] text-[#61747B] hover:text-[#16313A] rounded-md text-[11px] font-medium border border-[#DDE8E8] hover:bg-[#F0FAF8] transition-colors"
+              className="px-2 py-0.5 bg-[#F8FAFA] text-[#61747B] hover:text-[#16313A] rounded-md text-[11px] font-medium border border-[#DDE8E8] hover:bg-[#F0FAF8] transition-colors"
             >
               Reset
             </button>
@@ -327,9 +327,9 @@ export const PatientsView: React.FC = () => {
         </div>
       )}
 
-      {/* Spacious 3-Column Patient Cards Grid — Clear Readable Fonts */}
+      {/* 3 Boxes Perfectly Fit on Screen 1 — Row 2 Starts Strictly Below the Viewport Fold */}
       {!loading && !error && filteredPatients.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5 pt-1">
           {filteredPatients.map((patient) => {
             const pAlerts = calculatePatientAlerts(patient);
             const highAlertCount = pAlerts.filter((a) => a.severity === 'HIGH').length;
@@ -338,45 +338,45 @@ export const PatientsView: React.FC = () => {
             return (
               <div
                 key={patient.id}
-                className="bg-white p-4.5 sm:p-5 rounded-xl border border-[#DDE8E8] hover:border-[#00A99D]/50 hover:bg-[#F0FAF8] transition-all shadow-xs flex flex-col justify-between space-y-3.5"
+                className="bg-white p-4.5 rounded-2xl border border-[#DDE8E8] hover:border-[#00A99D]/50 hover:bg-[#F0FAF8] transition-all shadow-xs flex flex-col justify-between space-y-3"
               >
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="inline-block px-2.5 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-xs font-mono font-semibold rounded border border-[#00A99D]/30">
+                      <span className="inline-block px-2.5 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-xs font-mono font-bold rounded-lg border border-[#00A99D]/30">
                         {officialHealthId}
                       </span>
                       {highAlertCount > 0 && (
-                        <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-semibold rounded border border-rose-200 font-mono">
+                        <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-[10px] font-bold rounded-lg border border-rose-200 font-mono">
                           🔴 {highAlertCount} Alert{highAlertCount === 1 ? '' : 's'}
                         </span>
                       )}
                     </div>
-                    <span className="text-xs bg-[#F8FAFA] text-[#16313A] px-2.5 py-0.5 rounded border border-[#DDE8E8] font-medium whitespace-nowrap">
+                    <span className="text-[11px] bg-[#F8FAFA] text-[#16313A] px-2 py-0.5 rounded-md border border-[#DDE8E8] font-semibold whitespace-nowrap">
                       {patient.gender}
                     </span>
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-bold text-[#16313A] tracking-tight">
+                  <h3 className="text-base font-bold text-[#16313A] tracking-tight truncate">
                     {patient.fullName}
                   </h3>
 
-                  <div className="space-y-2 text-xs text-[#16313A] pt-2 border-t border-[#DDE8E8]">
-                    <div className="flex justify-between py-0.5">
-                      <span className="text-[#61747B]">Origin State:</span>
-                      <span className="font-semibold text-[#16313A]">{patient.stateOfOrigin}</span>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs text-[#16313A] pt-2 border-t border-[#DDE8E8]">
+                    <div>
+                      <span className="text-[#61747B] text-[11px] block">Origin State:</span>
+                      <span className="font-semibold text-[#16313A] text-xs truncate block">{patient.stateOfOrigin}</span>
                     </div>
-                    <div className="flex justify-between py-0.5">
-                      <span className="text-[#61747B]">Kerala District:</span>
-                      <span className="font-semibold text-[#00A99D]">{patient.currentDistrict}</span>
+                    <div>
+                      <span className="text-[#61747B] text-[11px] block">Kerala District:</span>
+                      <span className="font-semibold text-[#00A99D] text-xs truncate block">{patient.currentDistrict}</span>
                     </div>
-                    <div className="flex justify-between py-0.5">
-                      <span className="text-[#61747B]">Preferred Language:</span>
-                      <span className="font-medium text-[#16313A]">{patient.preferredLanguage}</span>
+                    <div>
+                      <span className="text-[#61747B] text-[11px] block">Language:</span>
+                      <span className="font-medium text-[#16313A] text-xs truncate block">{patient.preferredLanguage}</span>
                     </div>
-                    <div className="flex justify-between py-0.5">
-                      <span className="text-[#61747B]">Contact Phone:</span>
-                      <span className="font-mono text-[#16313A]">{patient.phone || 'Not Provided'}</span>
+                    <div>
+                      <span className="text-[#61747B] text-[11px] block">Phone:</span>
+                      <span className="font-mono text-[11px] text-[#16313A] truncate block">{patient.phone || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -384,7 +384,7 @@ export const PatientsView: React.FC = () => {
                 <div className="pt-2 border-t border-[#DDE8E8] flex items-center justify-between gap-2">
                   <button
                     onClick={() => setSelectedPatientId(patient.id)}
-                    className="flex-1 py-2 bg-[#E8F8F6] text-[#00A99D] hover:bg-[#d5f3ee] border border-[#00A99D]/30 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    className="flex-1 py-1.5 bg-[#E8F8F6] text-[#00A99D] hover:bg-[#d5f3ee] border border-[#00A99D]/30 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-xs"
                   >
                     <span>👁️</span>
                     <span>View Health Record</span>
@@ -393,7 +393,7 @@ export const PatientsView: React.FC = () => {
                   <button
                     onClick={() => setDeleteTarget({ id: patient.id, name: patient.fullName })}
                     title="Delete record"
-                    className="p-2 text-[#61747B] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors text-xs"
+                    className="p-1.5 text-[#61747B] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors text-xs"
                   >
                     🗑️
                   </button>

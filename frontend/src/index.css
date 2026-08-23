@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .snap-page-container {
+    scroll-snap-type: y mandatory;
+  }
+  .snap-page-item {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+}

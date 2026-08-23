@@ -35,7 +35,7 @@ export default function App() {
       />
 
       {/* Main Content Body - Desktop Viewport Flex Layout */}
-      <main className="flex-1 w-[calc(100%-32px)] sm:w-[calc(100%-48px)] max-w-[1650px] mx-auto py-4 sm:py-5">
+      <main className="flex-1 w-full max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
         {isBackendOnline === false && (
           <div className="mb-4 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl flex items-center justify-between shadow-sm">
             <div className="flex items-center space-x-3 text-sm">

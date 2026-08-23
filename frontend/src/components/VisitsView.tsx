@@ -19,10 +19,6 @@ export const VisitsView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
 
-  // Pagination state (2 items per page for perfect 1-screen fit and spacious readable cards)
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 2;
-
   // Dropdown reference data for Modal
   const [patients, setPatients] = useState<Patient[]>([]);
   const [facilities, setFacilities] = useState<HealthcareFacility[]>([]);
@@ -78,11 +74,6 @@ export const VisitsView: React.FC = () => {
   useEffect(() => {
     loadVisitsData();
   }, []);
-
-  // Reset to page 1 whenever filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, selectedFacilityId]);
 
   const handleOpenAddModal = () => {
     setAddError(null);
@@ -186,11 +177,6 @@ export const VisitsView: React.FC = () => {
     return matchesSearch && matchesFacility;
   });
 
-  // Calculate Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredVisits.length / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedVisits = filteredVisits.slice(startIndex, startIndex + itemsPerPage);
-
   return (
     <div className="space-y-4">
       {/* Toast Feedback Notification */}
@@ -204,43 +190,43 @@ export const VisitsView: React.FC = () => {
       )}
 
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-[#DDE8E8] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white px-4 py-2.5 rounded-xl border border-[#DDE8E8] shadow-xs">
         <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl sm:text-2xl font-bold text-[#16313A] tracking-tight">Clinical Visits</h2>
-            <span className="px-2.5 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-xs font-semibold rounded-full border border-[#00A99D]/30 font-mono">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-[#16313A] tracking-tight">Clinical Visits</h2>
+            <span className="px-2 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-[11px] font-semibold rounded-full border border-[#00A99D]/30 font-mono">
               {visits.length} Total Encounters
             </span>
           </div>
-          <p className="text-[#61747B] text-xs mt-1">
-            Chronological consultation encounters with 2 encounters per page.
+          <p className="text-[#61747B] text-[11px]">
+            Consultation encounters and medical diagnosis records across Kerala facilities.
           </p>
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="px-4.5 py-2 bg-[#00A99D] hover:bg-[#008F83] text-white font-semibold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+          className="px-3.5 py-1.5 bg-[#00A99D] hover:bg-[#008F83] text-white font-semibold rounded-lg text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
         >
           <span>+ Log Clinical Visit</span>
         </button>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-[#DDE8E8] shadow-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-[#DDE8E8] shadow-xs">
         <div className="relative flex-1">
           <input
             type="text"
             placeholder="Search worker name, Health ID, chief complaint, or diagnosis..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white text-[#16313A] placeholder-[#61747B] pl-9 pr-3 py-2 rounded-xl border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D]"
+            className="w-full bg-white text-[#16313A] placeholder-[#61747B] pl-8 pr-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D]"
           />
-          <span className="absolute left-3 top-2.5 text-[#61747B] text-xs">🔍</span>
+          <span className="absolute left-2.5 top-2 text-[#61747B] text-xs">🔍</span>
         </div>
 
         <select
           value={selectedFacilityId}
           onChange={(e) => setSelectedFacilityId(e.target.value)}
-          className="bg-white text-[#16313A] px-3.5 py-2 rounded-xl border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[200px]"
+          className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[190px]"
         >
           <option value="">All Healthcare Facilities</option>
           {facilities.map((fac) => (
@@ -275,156 +261,136 @@ export const VisitsView: React.FC = () => {
         </div>
       )}
 
-      {/* 2 Spacious Cards Per Page — Beautiful Fonts & Zero Scrolling */}
-      {!loading && !error && paginatedVisits.length > 0 && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {paginatedVisits.map((visit, pageIdx) => {
-              const actualIndex = startIndex + pageIdx;
-              const officialHealthId = visit.patient
-                ? formatOfficialHealthId(visit.patient.healthId, visit.patient.createdAt)
-                : '';
-              const ordinalText = `${getOrdinal(actualIndex + 1)} Visit`;
+      {/* 2 Columns in 1 Row on Desktop — Clean Rows with Rich Readable Fonts and Scroll Snap */}
+      {!loading && !error && filteredVisits.length > 0 && (
+        <div className="space-y-6">
+          {Array.from({ length: Math.ceil(filteredVisits.length / 2) }).map((_, rowIndex) => {
+            const pair = filteredVisits.slice(rowIndex * 2, rowIndex * 2 + 2);
 
-              return (
-                <div
-                  key={visit.id}
-                  className="bg-white p-5 sm:p-6 rounded-2xl border border-[#DDE8E8] hover:border-[#00A99D]/50 hover:bg-[#F0FAF8] transition-all shadow-sm space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    {/* Header: Ordinal Badge + Health ID + Worker Name + Date */}
-                    <div className="flex justify-between items-start gap-2 border-b border-[#DDE8E8] pb-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-3 py-1 bg-[#00A99D] text-white text-xs font-mono font-extrabold rounded-lg shadow-xs">
-                            📍 {ordinalText}
-                          </span>
-                          <span className="px-2.5 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-xs font-mono font-semibold rounded border border-[#00A99D]/30">
-                            {officialHealthId}
-                          </span>
-                        </div>
-                        <h3 className="text-lg font-bold text-[#16313A] tracking-tight">
-                          {visit.patient?.fullName || 'Migrant Worker'}
-                        </h3>
-                      </div>
+            return (
+              <div
+                key={`visit-row-${rowIndex}`}
+                className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1 scroll-mt-20"
+              >
+                {pair.map((visit, pairIdx) => {
+                  const actualIndex = rowIndex * 2 + pairIdx;
+                  const officialHealthId = visit.patient
+                    ? formatOfficialHealthId(visit.patient.healthId, visit.patient.createdAt)
+                    : '';
+                  const ordinalText = `${getOrdinal(actualIndex + 1)} Visit`;
 
-                      <span className="text-xs font-mono font-semibold text-[#00A99D] bg-[#E8F8F6] px-3 py-1 rounded-xl border border-[#00A99D]/30 whitespace-nowrap">
-                        📅 {new Date(visit.visitDate).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {/* Facility & Doctor Info */}
-                    <div className="grid grid-cols-2 gap-3 text-xs pt-1">
-                      <div>
-                        <span className="text-[#61747B] block text-xs mb-0.5">Healthcare Facility:</span>
-                        <span className="font-semibold text-[#16313A] text-sm leading-snug">
-                          🏥 {visit.facility?.name || 'Healthcare Facility'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[#61747B] block text-xs mb-0.5">Doctor / Staff:</span>
-                        <span className="font-semibold text-[#16313A] text-sm leading-snug">
-                          👨‍⚕️ Dr. {visit.doctor?.name || 'Medical Officer'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Chief Complaint & Diagnosis */}
-                    <div className="space-y-2.5 text-xs">
-                      <div>
-                        <span className="text-[#61747B] block text-xs mb-1">Chief Complaint:</span>
-                        <p className="text-[#16313A] font-medium text-xs sm:text-sm bg-[#F8FAFA] p-3 rounded-xl border border-[#DDE8E8] leading-relaxed">
-                          {visit.chiefComplaint}
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className="text-[#61747B] block text-xs mb-1">Clinical Diagnosis:</span>
-                        <p className="text-[#00A99D] font-bold text-xs sm:text-sm bg-[#F8FAFA] p-3 rounded-xl border border-[#DDE8E8] leading-relaxed">
-                          {visit.diagnosis || 'No formal diagnosis specified'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Patient Vitals Summary */}
-                    {(visit.bloodPressure || visit.temperature || visit.pulse || visit.weight) && (
-                      <div className="flex flex-wrap gap-3.5 text-xs bg-[#F8FAFA] p-2.5 rounded-xl border border-[#DDE8E8] font-mono text-[#61747B]">
-                        {visit.bloodPressure && (
-                          <span>
-                            BP: <strong className="text-[#16313A]">{visit.bloodPressure}</strong>
-                          </span>
-                        )}
-                        {visit.temperature && (
-                          <span>
-                            Temp: <strong className="text-[#16313A]">{visit.temperature}</strong>
-                          </span>
-                        )}
-                        {visit.pulse && (
-                          <span>
-                            Pulse: <strong className="text-[#16313A]">{visit.pulse.toLowerCase().includes('bpm') ? visit.pulse : `${visit.pulse} bpm`}</strong>
-                          </span>
-                        )}
-                        {visit.weight && (
-                          <span>
-                            Weight: <strong className="text-[#16313A]">{visit.weight}</strong>
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Prescriptions (Rx) */}
-                    {visit.prescriptions && visit.prescriptions.length > 0 && (
-                      <div className="pt-1">
-                        <span className="text-xs text-[#61747B] font-semibold uppercase tracking-wider block mb-1.5">
-                          Prescriptions (Rx)
-                        </span>
-                        <div className="space-y-1.5">
-                          {visit.prescriptions.map((rx) => (
-                            <div
-                              key={rx.id}
-                              className="text-xs bg-[#F8FAFA] px-3.5 py-2 rounded-xl border border-[#DDE8E8] text-[#16313A] flex justify-between items-center"
-                            >
-                              <span className="font-semibold text-[#00A99D]">💊 {rx.medicineName} ({rx.dosage})</span>
-                              <span className="text-[#61747B] font-mono text-xs">{rx.frequency} — {rx.duration}</span>
+                  return (
+                    <div
+                      key={visit.id}
+                      className="bg-white p-5 rounded-2xl border border-[#DDE8E8] hover:border-[#00A99D]/50 hover:bg-[#F0FAF8] transition-all shadow-sm flex flex-col justify-between space-y-3.5 min-h-[290px]"
+                    >
+                      <div className="space-y-3">
+                        {/* Header: Ordinal Badge + Health ID + Worker Name + Date */}
+                        <div className="flex justify-between items-start gap-2 border-b border-[#DDE8E8] pb-2.5">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-1 bg-[#00A99D] text-white text-xs font-mono font-bold rounded-lg shadow-xs">
+                                📍 {ordinalText}
+                              </span>
+                              <span className="px-2.5 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-xs font-mono font-bold rounded border border-[#00A99D]/30">
+                                {officialHealthId}
+                              </span>
                             </div>
-                          ))}
+                            <h3 className="text-lg font-bold text-[#16313A] tracking-tight">
+                              {visit.patient?.fullName || 'Migrant Worker'}
+                            </h3>
+                          </div>
+
+                          <span className="text-xs font-mono font-semibold text-[#00A99D] bg-[#E8F8F6] px-3 py-1 rounded-lg border border-[#00A99D]/30 whitespace-nowrap">
+                            📅 {new Date(visit.visitDate).toLocaleDateString()}
+                          </span>
                         </div>
+
+                        {/* Facility & Doctor Info */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-[#61747B] block text-xs font-medium mb-0.5">Healthcare Facility:</span>
+                            <span className="font-semibold text-[#16313A] text-sm leading-snug truncate block">
+                              🏥 {visit.facility?.name || 'Healthcare Facility'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[#61747B] block text-xs font-medium mb-0.5">Doctor / Staff:</span>
+                            <span className="font-semibold text-[#16313A] text-sm leading-snug truncate block">
+                              👨‍⚕️ Dr. {visit.doctor?.name || 'Medical Officer'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Chief Complaint & Diagnosis Side-by-Side */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-[#61747B] block text-xs font-medium mb-1">Chief Complaint:</span>
+                            <p className="text-[#16313A] font-medium text-xs sm:text-sm bg-[#F8FAFA] p-3 rounded-xl border border-[#DDE8E8] leading-relaxed min-h-[56px]">
+                              {visit.chiefComplaint}
+                            </p>
+                          </div>
+
+                          <div>
+                            <span className="text-[#61747B] block text-xs font-medium mb-1">Clinical Diagnosis:</span>
+                            <p className="text-[#00A99D] font-bold text-xs sm:text-sm bg-[#F8FAFA] p-3 rounded-xl border border-[#DDE8E8] leading-relaxed min-h-[56px]">
+                              {visit.diagnosis || 'No formal diagnosis specified'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Patient Vitals Summary */}
+                        {(visit.bloodPressure || visit.temperature || visit.pulse || visit.weight) && (
+                          <div className="flex flex-wrap gap-3 text-xs bg-[#F8FAFA] px-3 py-2 rounded-xl border border-[#DDE8E8] font-mono text-[#61747B]">
+                            {visit.bloodPressure && (
+                              <span>
+                                BP: <strong className="text-[#16313A]">{visit.bloodPressure}</strong>
+                              </span>
+                            )}
+                            {visit.temperature && (
+                              <span>
+                                Temp: <strong className="text-[#16313A]">{visit.temperature}</strong>
+                              </span>
+                            )}
+                            {visit.pulse && (
+                              <span>
+                                Pulse: <strong className="text-[#16313A]">{visit.pulse.toLowerCase().includes('bpm') ? visit.pulse : `${visit.pulse} bpm`}</strong>
+                              </span>
+                            )}
+                            {visit.weight && (
+                              <span>
+                                Weight: <strong className="text-[#16313A]">{visit.weight}</strong>
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Prescriptions (Rx) */}
+                        {visit.prescriptions && visit.prescriptions.length > 0 && (
+                          <div className="pt-1">
+                            <span className="text-xs text-[#61747B] font-bold uppercase tracking-wider block mb-1">
+                              Prescriptions (Rx)
+                            </span>
+                            <div className="space-y-1.5">
+                              {visit.prescriptions.map((rx) => (
+                                <div
+                                  key={rx.id}
+                                  className="text-xs sm:text-sm bg-[#F8FAFA] px-3.5 py-2 rounded-xl border border-[#DDE8E8] text-[#16313A] flex justify-between items-center"
+                                >
+                                  <span className="font-semibold text-[#00A99D]">💊 {rx.medicineName} ({rx.dosage})</span>
+                                  <span className="text-[#61747B] font-mono text-xs">{rx.frequency} — {rx.duration}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Clean Pagination Controls Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-[#DDE8E8] shadow-sm">
-            <span className="text-xs text-[#61747B] font-mono">
-              Showing encounters <strong>{startIndex + 1}–{Math.min(startIndex + itemsPerPage, filteredVisits.length)}</strong> of <strong>{filteredVisits.length}</strong>
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="px-4 py-2 bg-[#F8FAFA] hover:bg-[#F0FAF8] disabled:opacity-40 text-[#16313A] font-semibold text-xs rounded-xl border border-[#DDE8E8] transition-colors"
-              >
-                ← Previous Page
-              </button>
-
-              <span className="px-3 py-1.5 bg-[#E8F8F6] text-[#00A99D] font-mono font-bold text-xs rounded-xl border border-[#00A99D]/30">
-                Page {currentPage} of {totalPages}
-              </span>
-
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="px-4 py-2 bg-[#F8FAFA] hover:bg-[#F0FAF8] disabled:opacity-40 text-[#16313A] font-semibold text-xs rounded-xl border border-[#DDE8E8] transition-colors"
-              >
-                Next Page →
-              </button>
-            </div>
-          </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       )}
 

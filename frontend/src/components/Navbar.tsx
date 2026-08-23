@@ -23,16 +23,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="bg-white border-b border-[#DDE8E8] sticky top-0 z-30 shadow-sm">
+    <header className="bg-white border-b border-[#DDE8E8] sticky top-0 z-30 shadow-xs">
       <div className="max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[72px]">
+        <div className="flex items-center justify-between h-[60px]">
           <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 rounded-xl bg-[#E8F8F6] border border-[#00A99D]/30 flex items-center justify-center text-[#00A99D] font-bold text-xl shadow-xs">
+            <div className="h-9 w-9 rounded-xl bg-[#E8F8F6] border border-[#00A99D]/30 flex items-center justify-center text-[#00A99D] font-bold text-lg shadow-xs">
               ⚕️
             </div>
             <div>
-              <h1 className="text-lg font-bold text-[#16313A] tracking-tight">Kerala Migrant Health Portal</h1>
-              <p className="text-xs text-[#61747B]">SIH25083 Digital Health Record System</p>
+              <h1 className="text-base font-bold text-[#16313A] tracking-tight leading-tight">Kerala Migrant Health Portal</h1>
+              <p className="text-[11px] text-[#61747B]">SIH25083 Digital Health Record System</p>
             </div>
           </div>
 
