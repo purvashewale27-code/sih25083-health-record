@@ -11,7 +11,12 @@ function createPrismaClient(): PrismaClient {
     throw new Error('DATABASE_URL environment variable is missing.');
   }
 
-  const pool = new pg.Pool({ connectionString });
+  const pool = new pg.Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+  });
   const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
