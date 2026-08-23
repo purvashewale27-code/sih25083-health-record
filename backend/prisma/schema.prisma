@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  visits    Visit[]
+}
+
+model Patient {
+  id                    String      @id @default(uuid())
+  healthId              String      @unique
+  fullName              String
+  dateOfBirth           DateTime
+  gender                String
+  phone                 String?
+  stateOfOrigin         String
+  currentDistrict       String
+  preferredLanguage     String
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  allergies             Allergy[]
+  followUps             FollowUp[]
+  labReports            LabReport[]
+  visits                Visit[]
+}
+
+model HealthcareFacility {
+  id        String       @id @default(uuid())
+  name      String
+  type      FacilityType
+  district  String
+  createdAt DateTime     @default(now())
+  visits    Visit[]
+}
+
+model Visit {
+  id             String             @id @default(uuid())
+  patientId      String
+  doctorId       String
+  facilityId     String
+  visitDate      DateTime           @default(now())
+  chiefComplaint String
+  diagnosis      String?
+  bloodPressure  String?
+  temperature    String?
+  pulse          String?
+  weight         String?
+  doctorNotes    String?
+  createdAt      DateTime           @default(now())
+  labReports     LabReport[]
+  prescriptions  Prescription[]
+  doctor         User               @relation(fields: [doctorId], references: [id])
+  facility       HealthcareFacility @relation(fields: [facilityId], references: [id])
+  patient        Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model Prescription {
+  id           String   @id @default(uuid())
+  visitId      String
+  medicineName String
+  dosage       String
+  frequency    String
+  duration     String
+  createdAt    DateTime @default(now())
+  visit        Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+}
+
+model Allergy {
+  id        String   @id @default(uuid())
+  patientId String
+  allergen  String
+  severity  Severity
+  createdAt DateTime @default(now())
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model LabReport {
+  id         String   @id @default(uuid())
+  patientId  String
+  visitId    String?
+  testName   String
+  result     String
+  reportDate DateTime @default(now())
+  createdAt  DateTime @default(now())
+  patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  visit      Visit?   @relation(fields: [visitId], references: [id])
+}
+
+model FollowUp {
+  id          String    @id @default(uuid())
+  followUpId  String    @unique
+  patientId   String
+  status      String    @default("PENDING")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+enum UserRole {
+  DOCTOR
+  HEALTH_WORKER
+  ADMIN
+}
+
+enum FacilityType {
+  PHC
+  MOBILE_CAMP
+  HOSPITAL
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}

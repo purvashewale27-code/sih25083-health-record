@@ -1,0 +1,38 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Backend API service for SIH25083 Digital Health Record Management System",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "seed": "npx tsx prisma/seed.ts",
+    "prisma:generate": "npx prisma generate",
+    "prisma:push": "npx prisma db push"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "@prisma/engines": "^6.4.0",
+    "@types/pg": "^8.23.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.20.1",
+    "prisma": "^7.9.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
