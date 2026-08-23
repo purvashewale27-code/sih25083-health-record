@@ -9,7 +9,7 @@ import type {
   User,
 } from '../types';
 
-const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://sih25083-health-record.onrender.com/api';
 const API_BASE_URL = rawBaseUrl.replace(/\/+$/, '');
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
