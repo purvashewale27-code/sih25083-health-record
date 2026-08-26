@@ -89,7 +89,7 @@ export const getSchemes = async (req: Request, res: Response) => {
 
 export const checkPatientEligibility = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { patientId } = req.params;
+    const patientId = req.params.patientId as string;
 
     const patient = await prisma.patient.findUnique({
       where: { id: patientId },

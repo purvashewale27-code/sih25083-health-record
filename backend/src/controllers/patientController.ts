@@ -63,7 +63,8 @@ export const getPatientById = async (req: Request, res: Response, next: NextFunc
 
 export const verifyPatientByHealthId = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const rawInput = decodeURIComponent(req.params.healthId || '').trim();
+    const healthIdParam = (req.params.healthId as string) || '';
+    const rawInput = decodeURIComponent(healthIdParam).trim();
 
     if (!rawInput) {
       return res.status(400).json({
@@ -94,8 +95,24 @@ export const verifyPatientByHealthId = async (req: Request, res: Response, next:
       const match = rawInput.match(/\d+$/);
       if (match) {
         const numPart = match[0];
-        const allPatients = await prisma.patient.findMany();
-        patient = allPatients.find((p) => p.healthId.endsWith(numPart)) as typeof patient;
+        const allPatients = await prisma.patient.findMany({
+          include: {
+            allergies: true,
+            followUps: true,
+            visits: {
+              orderBy: { visitDate: 'desc' },
+              include: {
+                doctor: { select: { id: true, name: true, role: true } },
+                facility: { select: { id: true, name: true, type: true, district: true } },
+                prescriptions: true,
+              },
+            },
+          },
+        });
+        const matched = allPatients.find((p) => p.healthId.endsWith(numPart));
+        if (matched) {
+          patient = matched;
+        }
       }
     }
 
