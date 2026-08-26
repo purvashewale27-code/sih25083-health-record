@@ -149,13 +149,14 @@ async function runTestSuite() {
 
   // TEST 9: Book Appointment with Double-Booking Lock
   let bookedAptId = '';
+  const testSlotTime = `1${Math.floor(Math.random() * 4) + 2}:${Math.floor(Math.random() * 5)}0`;
   await test('9. Book Appointment POST /api/appointments', async () => {
     const payload = {
       patientId: samplePatientId,
       doctorId: recommendedDocId,
       facilityId: sampleFacilityId,
       appointmentDate: dateStr,
-      slotTime: '15:20',
+      slotTime: testSlotTime,
       reason: 'Respiratory cough checkup',
       priority: 'MEDIUM',
     };
@@ -173,7 +174,7 @@ async function runTestSuite() {
       doctorId: recommendedDocId,
       facilityId: sampleFacilityId,
       appointmentDate: dateStr,
-      slotTime: '15:20',
+      slotTime: testSlotTime,
       reason: 'Duplicate attempt on same slot',
     };
     const res = await request('/appointments', 'POST', payload);
