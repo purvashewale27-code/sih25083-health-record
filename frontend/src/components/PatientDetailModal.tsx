@@ -6,7 +6,9 @@ import {
   apiCreatePatientLabReport,
 } from '../services/api';
 import { calculatePatientAlerts } from '../utils/alertEngine';
-import { generateQRCodeSVG, formatOfficialHealthId } from '../utils/qrGenerator';
+import { generateQRCodeSVG, formatOfficialHealthId, getScannableQRImageUrl } from '../utils/qrGenerator';
+import { InsuranceAssistanceModal } from './InsuranceAssistanceModal';
+import { AudioPrescriptionPlayer } from './AudioPrescriptionPlayer';
 
 interface PatientDetailModalProps {
   patientId: string;
@@ -128,8 +130,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patientI
 
   // Emergency Modal state
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
-
-  // Form states
+  const [showInsuranceModal, setShowInsuranceModal] = useState(false);
   const [showAllergyForm, setShowAllergyForm] = useState(false);
   const [allergen, setAllergen] = useState('');
   const [severity, setSeverity] = useState('HIGH');
@@ -192,6 +193,11 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patientI
 
   const calculatedAlerts = patient ? calculatePatientAlerts(patient) : [];
   const officialHealthId = patient ? formatOfficialHealthId(patient.healthId, patient.createdAt) : '';
+  // Encode live public portal link into QR code so scanning with any phone camera opens the verified record
+  const liveVerificationUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/?verify=${encodeURIComponent(patient?.healthId || officialHealthId)}`
+    : `https://sih25083-health-record.vercel.app/?verify=${encodeURIComponent(patient?.healthId || officialHealthId)}`;
+  const qrCodeImageUrl = getScannableQRImageUrl(liveVerificationUrl, 200);
   const qrCodeSvg = patient ? generateQRCodeSVG(officialHealthId, 110) : '';
 
   const allTimelineEvents = patient ? buildPatientTimeline(patient) : [];
@@ -265,12 +271,22 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patientI
             </button>
 
             {patient && (
-              <button
-                onClick={() => setShowEmergencyModal(true)}
-                className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-xs"
-              >
-                <span>🚨 Emergency Access</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setShowInsuranceModal(true)}
+                  className="px-3 py-1.5 bg-[#E8F8F6] hover:bg-[#d5f3ee] text-[#00A99D] font-semibold border border-[#00A99D]/30 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <span>🛡️</span>
+                  <span>AWAZ / Insurance</span>
+                </button>
+
+                <button
+                  onClick={() => setShowEmergencyModal(true)}
+                  className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold border border-rose-200 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <span>🚨 Emergency Access</span>
+                </button>
+              </>
             )}
 
             <button
@@ -335,10 +351,20 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patientI
                 </div>
 
                 {/* QR Code Graphic */}
-                <div className="flex flex-col items-center gap-2 bg-white p-4 rounded-2xl border border-[#DDE8E8] text-center shadow-xs">
-                  <div dangerouslySetInnerHTML={{ __html: qrCodeSvg }} />
-                  <span className="text-[10px] text-[#61747B] font-mono tracking-wider font-semibold">
-                    SCAN TO VERIFY RECORD
+                <div className="flex flex-col items-center gap-2 bg-white p-3.5 rounded-2xl border border-[#DDE8E8] text-center shadow-xs">
+                  <div className="relative w-[130px] h-[130px] flex items-center justify-center bg-white p-1 rounded-xl border border-[#DDE8E8]">
+                    <img
+                      src={qrCodeImageUrl}
+                      alt={`QR Code for ${officialHealthId}`}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        // Fallback to inline SVG if network is disconnected
+                        (e.currentTarget.parentElement as HTMLElement).innerHTML = qrCodeSvg;
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-[#00A99D] font-mono tracking-wider font-bold">
+                    SCAN WITH PHONE CAMERA
                   </span>
                 </div>
               </div>
@@ -551,9 +577,17 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patientI
 
                         {visit.prescriptions && visit.prescriptions.length > 0 && (
                           <div className="pt-2">
-                            <span className="text-xs text-[#61747B] font-semibold uppercase tracking-wider block mb-2">
-                              Prescribed Medications (Rx)
-                            </span>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs text-[#61747B] font-semibold uppercase tracking-wider block">
+                                Prescribed Medications (Rx)
+                              </span>
+                              <AudioPrescriptionPlayer
+                                language={patient.preferredLanguage || 'Hindi'}
+                                textToSpeak={`Medicine instructions: ${visit.prescriptions
+                                  .map((p) => `${p.medicineName}, dosage ${p.dosage}, take ${p.frequency} for ${p.duration}`)
+                                  .join('. ')}. Doctor notes: ${visit.doctorNotes || 'Take rest and drink clean water.'}`}
+                              />
+                            </div>
                             <div className="space-y-1.5">
                               {visit.prescriptions.map((p) => (
                                 <div key={p.id} className="text-xs bg-[#F8FAFA] px-3.5 py-2 rounded-xl border border-[#DDE8E8] text-[#16313A] flex flex-wrap justify-between gap-2">
@@ -868,6 +902,14 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({ patientI
             </div>
           </div>
         </div>
+      )}
+      {/* Insurance Assistance Modal */}
+      {showInsuranceModal && patient && (
+        <InsuranceAssistanceModal
+          isOpen={showInsuranceModal}
+          onClose={() => setShowInsuranceModal(false)}
+          patient={patient}
+        />
       )}
     </div>
   );

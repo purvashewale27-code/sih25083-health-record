@@ -1,10 +1,26 @@
 import { prisma } from '../src/lib/prisma.js';
-import { UserRole, FacilityType, Severity } from '@prisma/client';
+import {
+  UserRole,
+  FacilityType,
+  Severity,
+  DoctorSpecialization,
+  AppointmentStatus,
+  PaymentStatus,
+  PaymentMethod,
+} from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 async function main() {
   console.log('🌱 Seeding authentic Kerala Migrant Worker Health Portal data into Supabase PostgreSQL...');
 
+  // Hash standard password for medical officers
+  const salt = await bcrypt.genSalt(10);
+  const defaultPasswordHash = await bcrypt.hash('Kerala@123', salt);
+
   // Clear existing records in reverse dependency order
+  await prisma.payment.deleteMany({});
+  await prisma.appointment.deleteMany({});
+  await prisma.doctorAvailability.deleteMany({});
   await prisma.followUp.deleteMany({});
   await prisma.prescription.deleteMany({});
   await prisma.labReport.deleteMany({});
@@ -16,12 +32,14 @@ async function main() {
 
   console.log('🧹 Cleaned existing database tables.');
 
-  // 1. SEED HEALTHCARE FACILITIES (Official Govt Healthcare Hubs in Kerala Migrant Corridors)
+  // 1. SEED HEALTHCARE FACILITIES
   const perumbavoorPhc = await prisma.healthcareFacility.create({
     data: {
       name: 'Perumbavoor Taluk Hospital & Migrant Clinic',
       type: FacilityType.PHC,
       district: 'Ernakulam',
+      address: 'Main Central Rd, Perumbavoor, Kerala 683542',
+      contactPhone: '0484-2522244',
     },
   });
 
@@ -30,6 +48,8 @@ async function main() {
       name: 'Aluva District Hospital',
       type: FacilityType.HOSPITAL,
       district: 'Ernakulam',
+      address: 'Bank Junction, Aluva, Kerala 683101',
+      contactPhone: '0484-2624020',
     },
   });
 
@@ -38,6 +58,8 @@ async function main() {
       name: 'Kanjikode Industrial Zone Mobile Medical Camp',
       type: FacilityType.MOBILE_CAMP,
       district: 'Palakkad',
+      address: 'Industrial Belt Sector 2, Kanjikode, Kerala 678621',
+      contactPhone: '0491-2566100',
     },
   });
 
@@ -46,6 +68,8 @@ async function main() {
       name: 'Payyannur Taluk Headquarters Hospital',
       type: FacilityType.PHC,
       district: 'Kannur',
+      address: 'Payyannur Town, Kannur, Kerala 670307',
+      contactPhone: '0497-2805244',
     },
   });
 
@@ -54,33 +78,44 @@ async function main() {
       name: 'Kozhikode Beach General Hospital',
       type: FacilityType.HOSPITAL,
       district: 'Kozhikode',
+      address: 'Beach Rd, Vellayil, Kozhikode, Kerala 673032',
+      contactPhone: '0495-2365367',
     },
   });
 
   console.log('✅ Seeded 5 Healthcare Facilities.');
 
-  // 2. SEED SYSTEM USERS / MEDICAL OFFICERS (Directorate of Health Services Kerala)
+  // 2. SEED SYSTEM USERS / DOCTORS WITH SPECIALIZATIONS & PASSWORDS
   const drRajesh = await prisma.user.create({
     data: {
-      name: 'Rajesh V. Nambiar',
+      name: 'Dr. Rajesh V. Nambiar',
       email: 'dr.rajesh.nambiar@dhs.kerala.gov.in',
+      passwordHash: defaultPasswordHash,
       role: UserRole.DOCTOR,
+      specialization: DoctorSpecialization.PULMONOLOGY,
+      consultationFee: 0,
     },
   });
 
   const drPriya = await prisma.user.create({
     data: {
-      name: 'Priya S. Kurup',
+      name: 'Dr. Priya S. Kurup',
       email: 'dr.priya.kurup@dhs.kerala.gov.in',
+      passwordHash: defaultPasswordHash,
       role: UserRole.DOCTOR,
+      specialization: DoctorSpecialization.INFECTIOUS_DISEASE,
+      consultationFee: 0,
     },
   });
 
   const drAnoop = await prisma.user.create({
     data: {
-      name: 'Anoop Kumar P.',
+      name: 'Dr. Anoop Kumar P.',
       email: 'dr.anoop.kumar@dhs.kerala.gov.in',
+      passwordHash: defaultPasswordHash,
       role: UserRole.DOCTOR,
+      specialization: DoctorSpecialization.DERMATOLOGY,
+      consultationFee: 0,
     },
   });
 
@@ -88,6 +123,7 @@ async function main() {
     data: {
       name: 'Sunil Kumar K. V.',
       email: 'sunil.health@kerala.gov.in',
+      passwordHash: defaultPasswordHash,
       role: UserRole.HEALTH_WORKER,
     },
   });
@@ -96,13 +132,52 @@ async function main() {
     data: {
       name: 'Kerala Migrant Health Cell Admin',
       email: 'admin.migranthealth@kerala.gov.in',
+      passwordHash: defaultPasswordHash,
       role: UserRole.ADMIN,
     },
   });
 
-  console.log('✅ Seeded 5 System Users/Medical Officers.');
+  console.log('✅ Seeded 5 System Users & Doctors with passwords (Default: Kerala@123).');
 
-  // 3. SEED REAL MIGRANT WORKER HEALTH RECORDS
+  // 3. SEED DOCTOR AVAILABILITIES (Mon-Fri 09:00 - 13:00)
+  for (let day = 1; day <= 5; day++) {
+    await prisma.doctorAvailability.create({
+      data: {
+        doctorId: drRajesh.id,
+        facilityId: perumbavoorPhc.id,
+        dayOfWeek: day,
+        startTime: '09:00',
+        endTime: '13:00',
+        slotDurationMinutes: 20,
+      },
+    });
+
+    await prisma.doctorAvailability.create({
+      data: {
+        doctorId: drPriya.id,
+        facilityId: kanjikodeCamp.id,
+        dayOfWeek: day,
+        startTime: '09:00',
+        endTime: '13:00',
+        slotDurationMinutes: 20,
+      },
+    });
+
+    await prisma.doctorAvailability.create({
+      data: {
+        doctorId: drAnoop.id,
+        facilityId: aluvaHospital.id,
+        dayOfWeek: day,
+        startTime: '10:00',
+        endTime: '14:00',
+        slotDurationMinutes: 20,
+      },
+    });
+  }
+
+  console.log('✅ Seeded Doctor Weekly Availability Schedules.');
+
+  // 4. SEED REAL MIGRANT WORKER HEALTH RECORDS WITH AWAZ/PMJAY INSURANCE
   const patient1 = await prisma.patient.create({
     data: {
       healthId: 'KMH-2026-00001',
@@ -115,6 +190,8 @@ async function main() {
       preferredLanguage: 'Bengali',
       emergencyContactName: 'Bipul Roy (Brother)',
       emergencyContactPhone: '+91 97334 11223',
+      insuranceScheme: 'AWAZ Health Insurance Scheme for Interstate Guest Workers',
+      insuranceCardNumber: 'AWAZ-2026-KL-88219',
     },
   });
 
@@ -130,6 +207,8 @@ async function main() {
       preferredLanguage: 'Hindi',
       emergencyContactName: 'Sunita Paswan (Wife)',
       emergencyContactPhone: '+91 99341 55667',
+      insuranceScheme: 'Ayushman Bharat - PM-JAY',
+      insuranceCardNumber: 'PMJAY-BR-KL-00918',
     },
   });
 
@@ -145,6 +224,8 @@ async function main() {
       preferredLanguage: 'Assamese',
       emergencyContactName: 'Tarun Das (Father)',
       emergencyContactPhone: '+91 98541 99887',
+      insuranceScheme: 'AWAZ Health Insurance Scheme for Interstate Guest Workers',
+      insuranceCardNumber: 'AWAZ-2026-KL-44012',
     },
   });
 
@@ -160,6 +241,8 @@ async function main() {
       preferredLanguage: 'Odia',
       emergencyContactName: 'Manjula Sahoo (Wife)',
       emergencyContactPhone: '+91 94372 44332',
+      insuranceScheme: 'Karunya Benevolent Fund (KBF)',
+      insuranceCardNumber: 'KBF-2026-EKM-3310',
     },
   });
 
@@ -175,12 +258,14 @@ async function main() {
       preferredLanguage: 'Bengali',
       emergencyContactName: 'Rashida Bibi (Mother)',
       emergencyContactPhone: '+91 97335 88990',
+      insuranceScheme: 'AWAZ Health Insurance Scheme for Interstate Guest Workers',
+      insuranceCardNumber: 'AWAZ-2026-KL-77621',
     },
   });
 
-  console.log('✅ Seeded 5 Migrant Worker Patient Profiles.');
+  console.log('✅ Seeded 5 Migrant Worker Profiles with authentic Insurance metadata.');
 
-  // 4. SEED ALLERGIES & MEDICAL RESTRICTIONS
+  // 5. SEED ALLERGIES
   await prisma.allergy.create({
     data: {
       patientId: patient1.id,
@@ -205,9 +290,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Seeded Patient Allergies.');
-
-  // 5. SEED REAL CLINICAL VISITS & ENCOUNTERS
+  // 6. SEED CLINICAL VISITS
   const visit1 = await prisma.visit.create({
     data: {
       patientId: patient1.id,
@@ -272,9 +355,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Seeded 4 Clinical Encounter Records.');
-
-  // 6. SEED PRESCRIPTIONS (Rx)
+  // 7. SEED PRESCRIPTIONS
   await prisma.prescription.create({
     data: {
       visitId: visit1.id,
@@ -307,16 +388,6 @@ async function main() {
 
   await prisma.prescription.create({
     data: {
-      visitId: visit2.id,
-      medicineName: 'Tab Ciprofloxacin',
-      dosage: '500 mg',
-      frequency: 'Twice Daily (BD)',
-      duration: '5 Days',
-    },
-  });
-
-  await prisma.prescription.create({
-    data: {
       visitId: visit3.id,
       medicineName: 'Tab Paracetamol',
       dosage: '650 mg',
@@ -335,9 +406,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Seeded Prescriptions.');
-
-  // 7. SEED LAB DIAGNOSTIC REPORTS
+  // 8. SEED LAB REPORTS
   await prisma.labReport.create({
     data: {
       patientId: patient1.id,
@@ -358,19 +427,7 @@ async function main() {
     },
   });
 
-  await prisma.labReport.create({
-    data: {
-      patientId: patient2.id,
-      visitId: visit2.id,
-      testName: 'Stool Culture & Hanging Drop Microscopy',
-      result: 'Vibrio Cholerae: NEGATIVE (-). E. coli overgrowth isolated.',
-      reportDate: new Date('2026-08-20T16:00:00Z'),
-    },
-  });
-
-  console.log('✅ Seeded Lab Diagnostic Reports.');
-
-  // 8. SEED ACTIONABLE FOLLOW-UP STATUSES IN POSTGRESQL
+  // 9. SEED ACTIONABLE FOLLOW-UPS
   await prisma.followUp.create({
     data: {
       followUpId: `fu-alert-visit-${visit1.id}`,
@@ -387,16 +444,65 @@ async function main() {
     },
   });
 
-  await prisma.followUp.create({
+  // 10. SEED APPOINTMENTS & PAYMENTS (ONLINE BOOKING ENGINE)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const apt1 = await prisma.appointment.create({
     data: {
-      followUpId: `fu-alert-visit-${visit2.id}`,
-      patientId: patient2.id,
-      status: 'COMPLETED',
-      completedAt: new Date('2026-08-22T10:00:00Z'),
+      appointmentNumber: 'APT-2026-00001',
+      patientId: patient1.id,
+      doctorId: drRajesh.id,
+      facilityId: perumbavoorPhc.id,
+      appointmentDate: tomorrow,
+      slotTime: '10:00',
+      reason: 'Post-bronchitis occupational recovery review',
+      priority: Severity.HIGH,
+      status: AppointmentStatus.SCHEDULED,
+      notes: 'Check chest auscultation and pulse oximetry.',
     },
   });
 
-  console.log('✅ Seeded Persistent Follow-Up Statuses.');
+  await prisma.payment.create({
+    data: {
+      appointmentId: apt1.id,
+      patientId: patient1.id,
+      amount: 0,
+      orderId: `order_seed_001`,
+      status: PaymentStatus.WAIVED,
+      method: PaymentMethod.AWAZ_INSURANCE_WAIVER,
+      waivedReason: 'AWAZ Health Scheme 100% Cashless Camp Coverage',
+    },
+  });
+
+  const apt2 = await prisma.appointment.create({
+    data: {
+      appointmentNumber: 'APT-2026-00002',
+      patientId: patient2.id,
+      doctorId: drPriya.id,
+      facilityId: kanjikodeCamp.id,
+      appointmentDate: tomorrow,
+      slotTime: '11:20',
+      reason: 'Waterborne infection follow-up examination',
+      priority: Severity.MEDIUM,
+      status: AppointmentStatus.SCHEDULED,
+    },
+  });
+
+  await prisma.payment.create({
+    data: {
+      appointmentId: apt2.id,
+      patientId: patient2.id,
+      amount: 50,
+      orderId: `order_seed_002`,
+      paymentId: `pay_sih_test_99812`,
+      signature: `sandbox_signature_verified`,
+      status: PaymentStatus.SUCCESS,
+      method: PaymentMethod.UPI,
+    },
+  });
+
+  console.log('✅ Seeded Online Appointments & Verified Payments.');
   console.log('🎉 Seeding successfully completed!');
 }
 

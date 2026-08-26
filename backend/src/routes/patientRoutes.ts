@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getPatients,
   getPatientById,
+  verifyPatientByHealthId,
   createPatient,
   updatePatient,
   deletePatient,
@@ -16,6 +17,9 @@ import {
 } from '../controllers/labReportController.js';
 
 const router = Router();
+
+// Verification endpoint
+router.get('/verify/:healthId', verifyPatientByHealthId);
 
 // Patient CRUD
 router.get('/', getPatients);

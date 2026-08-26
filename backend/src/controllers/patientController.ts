@@ -23,10 +23,18 @@ export const getPatientById = async (req: Request, res: Response, next: NextFunc
       include: {
         allergies: true,
         followUps: true,
+        appointments: {
+          orderBy: { appointmentDate: 'desc' },
+          include: {
+            doctor: { select: { id: true, name: true, role: true, specialization: true } },
+            facility: { select: { id: true, name: true, type: true, district: true } },
+            payments: true,
+          },
+        },
         visits: {
           orderBy: { visitDate: 'desc' },
           include: {
-            doctor: { select: { id: true, name: true, role: true } },
+            doctor: { select: { id: true, name: true, role: true, specialization: true } },
             facility: { select: { id: true, name: true, type: true, district: true } },
             prescriptions: true,
           },
@@ -53,6 +61,61 @@ export const getPatientById = async (req: Request, res: Response, next: NextFunc
   }
 };
 
+export const verifyPatientByHealthId = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rawInput = decodeURIComponent(req.params.healthId || '').trim();
+
+    if (!rawInput) {
+      return res.status(400).json({
+        success: false,
+        error: 'Health ID is required for verification.',
+      });
+    }
+
+    // Support direct healthId match (e.g. KMH-2026-00001 or MIG-2025-0001) or UUID or URL query format
+    let patient = await prisma.patient.findUnique({
+      where: { healthId: rawInput },
+      include: {
+        allergies: true,
+        followUps: true,
+        visits: {
+          orderBy: { visitDate: 'desc' },
+          include: {
+            doctor: { select: { id: true, name: true, role: true } },
+            facility: { select: { id: true, name: true, type: true, district: true } },
+            prescriptions: true,
+          },
+        },
+      },
+    });
+
+    // If not found directly, extract trailing digits if KMH format
+    if (!patient) {
+      const match = rawInput.match(/\d+$/);
+      if (match) {
+        const numPart = match[0];
+        const allPatients = await prisma.patient.findMany();
+        patient = allPatients.find((p) => p.healthId.endsWith(numPart)) as typeof patient;
+      }
+    }
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        error: `No registered migrant health record matching ID "${rawInput}" was found.`,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Official Health Record Verified',
+      data: patient,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createPatient = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
@@ -66,6 +129,8 @@ export const createPatient = async (req: Request, res: Response, next: NextFunct
       preferredLanguage,
       emergencyContactName,
       emergencyContactPhone,
+      insuranceScheme,
+      insuranceCardNumber,
     } = req.body;
 
     if (!healthId || !fullName || !dateOfBirth || !gender || !stateOfOrigin || !currentDistrict || !preferredLanguage) {
@@ -95,6 +160,8 @@ export const createPatient = async (req: Request, res: Response, next: NextFunct
         preferredLanguage: String(preferredLanguage),
         emergencyContactName: emergencyContactName ? String(emergencyContactName) : null,
         emergencyContactPhone: emergencyContactPhone ? String(emergencyContactPhone) : null,
+        insuranceScheme: insuranceScheme ? String(insuranceScheme) : null,
+        insuranceCardNumber: insuranceCardNumber ? String(insuranceCardNumber) : null,
       },
     });
 
@@ -120,6 +187,8 @@ export const updatePatient = async (req: Request, res: Response, next: NextFunct
       preferredLanguage,
       emergencyContactName,
       emergencyContactPhone,
+      insuranceScheme,
+      insuranceCardNumber,
     } = req.body;
 
     const existing = await prisma.patient.findUnique({ where: { id } });
@@ -139,6 +208,8 @@ export const updatePatient = async (req: Request, res: Response, next: NextFunct
     if (preferredLanguage !== undefined) updateData.preferredLanguage = String(preferredLanguage);
     if (emergencyContactName !== undefined) updateData.emergencyContactName = emergencyContactName ? String(emergencyContactName) : null;
     if (emergencyContactPhone !== undefined) updateData.emergencyContactPhone = emergencyContactPhone ? String(emergencyContactPhone) : null;
+    if (insuranceScheme !== undefined) updateData.insuranceScheme = insuranceScheme ? String(insuranceScheme) : null;
+    if (insuranceCardNumber !== undefined) updateData.insuranceCardNumber = insuranceCardNumber ? String(insuranceCardNumber) : null;
 
     if (dateOfBirth) {
       const parsedDob = new Date(dateOfBirth);

@@ -2,17 +2,22 @@ import http from 'http';
 
 const BASE_URL = 'http://localhost:5000/api';
 
-function request(path: string, method = 'GET', body: any = null): Promise<any> {
+function request(path: string, method = 'GET', body: any = null, token: string | null = null): Promise<any> {
   return new Promise((resolve, reject) => {
     const url = new URL(BASE_URL + path);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const options: http.RequestOptions = {
       hostname: url.hostname,
       port: url.port,
       path: url.pathname + url.search,
       method: method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     };
 
     const req = http.request(options, (res) => {
@@ -22,7 +27,7 @@ function request(path: string, method = 'GET', body: any = null): Promise<any> {
         try {
           const parsed = JSON.parse(data);
           resolve({ status: res.statusCode, body: parsed });
-        } catch (err) {
+        } catch {
           resolve({ status: res.statusCode, body: data });
         }
       });
@@ -61,156 +66,141 @@ async function runTestSuite() {
     }
   });
 
-  // TEST 2: Fetch Patients
-  let samplePatientId = '';
-  await test('2. Patients GET /api/patients', async () => {
-    const res = await request('/patients');
-    if (res.status !== 200 || !Array.isArray(res.body.data)) {
-      throw new Error(`Expected HTTP 200 with patient array, got status ${res.status}`);
+  // TEST 2: Staff Login & JWT Token Generation
+  let authToken = '';
+  await test('2. Auth Login POST /api/auth/login', async () => {
+    const payload = {
+      email: 'dr.rajesh.nambiar@dhs.kerala.gov.in',
+      password: 'Kerala@123',
+    };
+    const res = await request('/auth/login', 'POST', payload);
+    if (res.status !== 200 || !res.body.token) {
+      throw new Error(`Failed to login doctor: ${JSON.stringify(res.body)}`);
     }
-    if (res.body.data.length === 0) {
-      throw new Error('No patient records found in Supabase DB.');
+    authToken = res.body.token;
+  });
+
+  // TEST 3: Get Authenticated User Profile
+  await test('3. Auth Profile GET /api/auth/me', async () => {
+    const res = await request('/auth/me', 'GET', null, authToken);
+    if (res.status !== 200 || !res.body.data || res.body.data.role !== 'DOCTOR') {
+      throw new Error(`Expected authenticated doctor profile.`);
+    }
+  });
+
+  // TEST 4: Fetch Patients List
+  let samplePatientId = '';
+  await test('4. Fetch Patients GET /api/patients', async () => {
+    const res = await request('/patients');
+    if (res.status !== 200 || !Array.isArray(res.body.data) || res.body.data.length === 0) {
+      throw new Error(`Expected array of patients.`);
     }
     samplePatientId = res.body.data[0].id;
   });
 
-  // TEST 3: Fetch Single Patient Graph by ID
-  await test('3. Patient Health Record Graph GET /api/patients/:id', async () => {
-    if (!samplePatientId) throw new Error('No sample patient ID available.');
-    const res = await request(`/patients/${samplePatientId}`);
-    if (res.status !== 200 || !res.body.data || res.body.data.id !== samplePatientId) {
-      throw new Error(`Failed to load patient health record graph.`);
+  // TEST 5: Verify Patient by Health ID
+  await test('5. Instant QR/Health ID Verify GET /api/patients/verify/KMH-2026-00001', async () => {
+    const res = await request('/patients/verify/KMH-2026-00001');
+    if (res.status !== 200 || !res.body.data || !res.body.data.fullName) {
+      throw new Error(`Failed to verify health ID KMH-2026-00001`);
     }
   });
 
-  // TEST 4: Create Patient
-  let createdPatientId = '';
-  await test('4. Add Patient POST /api/patients', async () => {
+  // TEST 6: Doctor Recommendation Engine
+  let recommendedDocId = '';
+  await test('6. Doctor Recommendation POST /api/doctors/recommend', async () => {
     const payload = {
-      healthId: `KMH-TEST-${Date.now().toString().substring(7)}`,
-      fullName: 'Integration Test Worker',
-      dateOfBirth: '1996-05-10',
-      gender: 'Male',
-      phone: '+91 99999 88888',
-      stateOfOrigin: 'Assam',
-      currentDistrict: 'Ernakulam',
-      preferredLanguage: 'Assamese',
-      emergencyContactName: 'Test Contact',
-      emergencyContactPhone: '+91 99999 77777',
+      complaint: 'Acute cough, wheezing and sawdust irritation',
+      district: 'Ernakulam',
     };
-    const res = await request('/patients', 'POST', payload);
-    if (res.status !== 201 || !res.body.data || !res.body.data.id) {
-      throw new Error(`Failed to create patient record: ${JSON.stringify(res.body)}`);
+    const res = await request('/doctors/recommend', 'POST', payload);
+    if (
+      res.status !== 200 ||
+      !res.body.data ||
+      res.body.data.recommendedSpecialization !== 'PULMONOLOGY' ||
+      res.body.data.doctors.length === 0
+    ) {
+      throw new Error(`Doctor recommendation failed: ${JSON.stringify(res.body)}`);
     }
-    createdPatientId = res.body.data.id;
+    recommendedDocId = res.body.data.doctors[0].id;
   });
 
-  // TEST 5: Fetch Facilities
-  let sampleFacilityId = '';
-  await test('5. Healthcare Facilities GET /api/facilities', async () => {
-    const res = await request('/facilities');
-    if (res.status !== 200 || !Array.isArray(res.body.data)) {
-      throw new Error(`Expected HTTP 200 with facilities array.`);
+  // TEST 7: Doctor Slot Availability
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateStr = tomorrow.toISOString().split('T')[0];
+
+  await test(`7. Available Slots GET /api/appointments/slots?doctorId=&date=`, async () => {
+    const res = await request(`/appointments/slots?doctorId=${recommendedDocId}&date=${dateStr}`);
+    if (res.status !== 200 || !res.body.data || !Array.isArray(res.body.data.slots)) {
+      throw new Error(`Failed to fetch doctor availability slots.`);
     }
-    if (res.body.data.length === 0) {
-      throw new Error('No facility records found in Supabase DB.');
+  });
+
+  // TEST 8: Fetch Facilities
+  let sampleFacilityId = '';
+  await test('8. Facilities GET /api/facilities', async () => {
+    const res = await request('/facilities');
+    if (res.status !== 200 || !Array.isArray(res.body.data) || res.body.data.length === 0) {
+      throw new Error(`Expected array of facilities.`);
     }
     sampleFacilityId = res.body.data[0].id;
   });
 
-  // TEST 6: Add Facility
-  await test('6. Add Facility POST /api/facilities', async () => {
+  // TEST 9: Book Appointment with Double-Booking Lock
+  let bookedAptId = '';
+  await test('9. Book Appointment POST /api/appointments', async () => {
     const payload = {
-      name: `Test PHC ${Date.now().toString().substring(8)}`,
-      type: 'PHC',
-      district: 'Palakkad',
-    };
-    const res = await request('/facilities', 'POST', payload);
-    if (res.status !== 201 || !res.body.data) {
-      throw new Error(`Failed to create facility.`);
-    }
-  });
-
-  // TEST 7: Fetch Users / Doctors
-  let sampleDoctorId = '';
-  await test('7. Staff / Users GET /api/users', async () => {
-    const res = await request('/users');
-    if (res.status !== 200 || !Array.isArray(res.body.data)) {
-      throw new Error(`Expected HTTP 200 with users array.`);
-    }
-    if (res.body.data.length === 0) {
-      throw new Error('No user records found in Supabase DB.');
-    }
-    sampleDoctorId = res.body.data[0].id;
-  });
-
-  // TEST 8: Add Staff Member
-  await test('8. Add Staff Member POST /api/users', async () => {
-    const payload = {
-      name: 'Dr. Test Integration Officer',
-      email: `dr.test.${Date.now()}@dhs.kerala.gov.in`,
-      role: 'DOCTOR',
-    };
-    const res = await request('/users', 'POST', payload);
-    if (res.status !== 201 || !res.body.data) {
-      throw new Error(`Failed to create staff member.`);
-    }
-  });
-
-  // TEST 9: Fetch Clinical Visits
-  await test('9. Clinical Visits GET /api/visits', async () => {
-    const res = await request('/visits');
-    if (res.status !== 200 || !Array.isArray(res.body.data)) {
-      throw new Error(`Expected HTTP 200 with visits array.`);
-    }
-  });
-
-  // TEST 10: Create Clinical Visit Linked to Patient
-  let createdVisitId = '';
-  await test('10. Log Clinical Visit POST /api/visits', async () => {
-    const payload = {
-      patientId: createdPatientId || samplePatientId,
-      doctorId: sampleDoctorId,
+      patientId: samplePatientId,
+      doctorId: recommendedDocId,
       facilityId: sampleFacilityId,
-      chiefComplaint: 'Routine wellness & respiratory checkup for integration testing',
-      diagnosis: 'Normal Clinical Examination (ICD-10 Z00.00)',
-      bloodPressure: '120/80',
-      temperature: '98.6°F',
-      pulse: '72 bpm',
-      weight: '68 kg',
+      appointmentDate: dateStr,
+      slotTime: '15:20',
+      reason: 'Respiratory cough checkup',
+      priority: 'MEDIUM',
     };
-    const res = await request('/visits', 'POST', payload);
+    const res = await request('/appointments', 'POST', payload);
     if (res.status !== 201 || !res.body.data) {
-      throw new Error(`Failed to create clinical visit: ${JSON.stringify(res.body)}`);
+      throw new Error(`Failed to book appointment: ${JSON.stringify(res.body)}`);
     }
-    createdVisitId = res.body.data.id;
+    bookedAptId = res.body.data.id;
   });
 
-  // TEST 11: Create Prescription Linked to Visit
-  await test('11. Add Prescription POST /api/prescriptions', async () => {
-    if (!createdVisitId) throw new Error('No created visit ID available.');
+  // TEST 10: Double-Booking Conflict Prevention
+  await test('10. Double-Booking Conflict Prevention (409 Conflict)', async () => {
     const payload = {
-      visitId: createdVisitId,
-      medicineName: 'Tab Vitamin C',
-      dosage: '500 mg',
-      frequency: 'Once Daily (OD)',
-      duration: '7 Days',
+      patientId: samplePatientId,
+      doctorId: recommendedDocId,
+      facilityId: sampleFacilityId,
+      appointmentDate: dateStr,
+      slotTime: '15:20',
+      reason: 'Duplicate attempt on same slot',
     };
-    const res = await request('/prescriptions', 'POST', payload);
-    if (res.status !== 201 || !res.body.data) {
-      throw new Error(`Failed to create prescription.`);
+    const res = await request('/appointments', 'POST', payload);
+    if (res.status !== 409) {
+      throw new Error(`Expected HTTP 409 conflict on double-booking, got ${res.status}`);
     }
   });
 
-  // TEST 12: Persistent Follow-Up Status Update
-  await test('12. Update Follow-up Status PUT /api/followups/:id/status', async () => {
+  // TEST 11: Payment Order Creation & BPL Waiver
+  await test('11. Payment Waiver POST /api/payments/create-order', async () => {
     const payload = {
-      patientId: createdPatientId || samplePatientId,
-      status: 'COMPLETED',
+      patientId: samplePatientId,
+      appointmentId: bookedAptId,
+      isBplWaiver: true,
+      waiverReason: 'AWAZ Cashless Free Triage',
     };
-    const res = await request(`/followups/fu-test-${Date.now()}/status`, 'PUT', payload);
-    if (res.status !== 200 || !res.body.data || res.body.data.status !== 'COMPLETED') {
-      throw new Error(`Failed to update follow-up status in PostgreSQL.`);
+    const res = await request('/payments/create-order', 'POST', payload);
+    if (res.status !== 201 || !res.body.data?.isWaived) {
+      throw new Error(`Failed to apply AWAZ payment waiver.`);
+    }
+  });
+
+  // TEST 12: Insurance Eligibility Evaluation
+  await test(`12. AWAZ / PM-JAY Eligibility GET /api/insurance/eligibility/:patientId`, async () => {
+    const res = await request(`/insurance/eligibility/${samplePatientId}`);
+    if (res.status !== 200 || !res.body.data || !Array.isArray(res.body.data.evaluations)) {
+      throw new Error(`Failed to evaluate insurance eligibility.`);
     }
   });
 

@@ -7,18 +7,23 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  role      UserRole
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  visits    Visit[]
+  id              String               @id @default(uuid())
+  name            String
+  email           String               @unique
+  passwordHash    String               @default("$2a$10$eW6Y0xQn4zO3J6w7K/8k1.4bB5LzF8O0h5e0C9u4zX.6cWq2oM5i6") // default: 'Kerala@123'
+  role            UserRole
+  specialization  DoctorSpecialization?
+  consultationFee Int                  @default(0) // 0 for Govt PHC/Camp, or token fee
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  visits          Visit[]
+  availabilities  DoctorAvailability[]
+  appointments    Appointment[]
 }
 
 model Patient {
-  id                    String      @id @default(uuid())
-  healthId              String      @unique
+  id                    String        @id @default(uuid())
+  healthId              String        @unique
   fullName              String
   dateOfBirth           DateTime
   gender                String
@@ -28,21 +33,85 @@ model Patient {
   preferredLanguage     String
   emergencyContactName  String?
   emergencyContactPhone String?
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  insuranceScheme       String?       // e.g. "AWAZ Health Scheme", "PM-JAY", "Karunya Benevolent Fund"
+  insuranceCardNumber   String?       // e.g. "AWAZ-2026-KL-98712"
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
   allergies             Allergy[]
   followUps             FollowUp[]
   labReports            LabReport[]
   visits                Visit[]
+  appointments          Appointment[]
+  payments              Payment[]
 }
 
 model HealthcareFacility {
-  id        String       @id @default(uuid())
-  name      String
-  type      FacilityType
-  district  String
-  createdAt DateTime     @default(now())
-  visits    Visit[]
+  id             String               @id @default(uuid())
+  name           String
+  type           FacilityType
+  district       String
+  address        String?
+  contactPhone   String?
+  createdAt      DateTime             @default(now())
+  visits         Visit[]
+  availabilities DoctorAvailability[]
+  appointments   Appointment[]
+}
+
+model DoctorAvailability {
+  id                  String             @id @default(uuid())
+  doctorId            String
+  facilityId          String
+  dayOfWeek           Int                // 0=Sun, 1=Mon, ..., 6=Sat
+  startTime           String             // e.g. "09:00"
+  endTime             String             // e.g. "13:00"
+  slotDurationMinutes Int                @default(20)
+  maxPatientsPerSlot  Int                @default(1)
+  createdAt           DateTime           @default(now())
+  doctor              User               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  facility            HealthcareFacility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, dayOfWeek])
+}
+
+model Appointment {
+  id                String             @id @default(uuid())
+  appointmentNumber String             @unique // e.g. "APT-2026-00001"
+  patientId         String
+  doctorId          String
+  facilityId        String
+  appointmentDate   DateTime           // Target Date (YYYY-MM-DD)
+  slotTime          String             // e.g. "10:20"
+  status            AppointmentStatus  @default(SCHEDULED)
+  reason            String             // e.g. "Sawdust cough checkup"
+  priority          Severity           @default(MEDIUM)
+  notes             String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  patient           Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor            User               @relation(fields: [doctorId], references: [id])
+  facility          HealthcareFacility @relation(fields: [facilityId], references: [id])
+  payments          Payment[]
+
+  @@unique([doctorId, appointmentDate, slotTime]) // Prevents double-booking same doctor at exact slot
+}
+
+model Payment {
+  id            String         @id @default(uuid())
+  appointmentId String?
+  patientId     String
+  amount        Int            // In INR (e.g. 50 or 0 for BPL waiver)
+  currency      String         @default("INR")
+  orderId       String         @unique // Razorpay Order ID or Mock Token
+  paymentId     String?        // Razorpay Payment ID on success
+  signature     String?        // Razorpay Signature
+  status        PaymentStatus  @default(INITIATED)
+  method        PaymentMethod  @default(UPI)
+  waivedReason  String?        // e.g. "AWAZ Covered", "BPL Guest Worker Free Camp"
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id])
 }
 
 model Visit {
@@ -115,6 +184,16 @@ enum UserRole {
   ADMIN
 }
 
+enum DoctorSpecialization {
+  GENERAL_MEDICINE
+  PULMONOLOGY
+  DERMATOLOGY
+  INFECTIOUS_DISEASE
+  ORTHOPEDICS
+  OCCUPATIONAL_HEALTH
+  PEDIATRICS
+}
+
 enum FacilityType {
   PHC
   MOBILE_CAMP
@@ -125,4 +204,26 @@ enum Severity {
   LOW
   MEDIUM
   HIGH
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  IN_CONSULTATION
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  WAIVED
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  CASH_AT_DESK
+  AWAZ_INSURANCE_WAIVER
 }

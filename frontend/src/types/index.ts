@@ -1,14 +1,34 @@
 export type UserRole = 'DOCTOR' | 'HEALTH_WORKER' | 'ADMIN';
 export type FacilityType = 'PHC' | 'MOBILE_CAMP' | 'HOSPITAL';
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH';
+export type DoctorSpecialization =
+  | 'GENERAL_MEDICINE'
+  | 'PULMONOLOGY'
+  | 'DERMATOLOGY'
+  | 'INFECTIOUS_DISEASE'
+  | 'ORTHOPEDICS'
+  | 'OCCUPATIONAL_HEALTH'
+  | 'PEDIATRICS';
+
+export type AppointmentStatus =
+  | 'SCHEDULED'
+  | 'IN_CONSULTATION'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'NO_SHOW';
+
+export type PaymentStatus = 'INITIATED' | 'SUCCESS' | 'FAILED' | 'WAIVED';
+export type PaymentMethod = 'UPI' | 'CARD' | 'CASH_AT_DESK' | 'AWAZ_INSURANCE_WAIVER';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  specialization?: DoctorSpecialization | null;
+  consultationFee?: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface HealthcareFacility {
@@ -16,6 +36,53 @@ export interface HealthcareFacility {
   name: string;
   type: FacilityType;
   district: string;
+  address?: string | null;
+  contactPhone?: string | null;
+  createdAt: string;
+}
+
+export interface DoctorAvailability {
+  id: string;
+  doctorId: string;
+  facilityId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  slotDurationMinutes: number;
+  facility?: HealthcareFacility;
+}
+
+export interface Appointment {
+  id: string;
+  appointmentNumber: string;
+  patientId: string;
+  doctorId: string;
+  facilityId: string;
+  appointmentDate: string;
+  slotTime: string;
+  status: AppointmentStatus;
+  reason: string;
+  priority: Severity;
+  notes?: string | null;
+  createdAt: string;
+  patient?: Patient;
+  doctor?: User;
+  facility?: HealthcareFacility;
+  payments?: Payment[];
+}
+
+export interface Payment {
+  id: string;
+  appointmentId?: string | null;
+  patientId: string;
+  amount: number;
+  currency: string;
+  orderId: string;
+  paymentId?: string | null;
+  signature?: string | null;
+  status: PaymentStatus;
+  method: PaymentMethod;
+  waivedReason?: string | null;
   createdAt: string;
 }
 
@@ -71,6 +138,7 @@ export interface Visit {
     id: string;
     name: string;
     role: UserRole;
+    specialization?: DoctorSpecialization | null;
   };
   facility?: {
     id: string;
@@ -94,11 +162,29 @@ export interface Patient {
   preferredLanguage: string;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
+  insuranceScheme?: string | null;
+  insuranceCardNumber?: string | null;
   createdAt: string;
   updatedAt: string;
   allergies?: Allergy[];
   visits?: Visit[];
   labReports?: LabReport[];
+  appointments?: Appointment[];
+  payments?: Payment[];
+}
+
+export interface WelfareScheme {
+  id: string;
+  name: string;
+  code: string;
+  governingBody: string;
+  healthCoverageAmount: string;
+  accidentalBenefit: string;
+  targetGroup: string;
+  eligibilityRequirements: string[];
+  coveredTreatments: string[];
+  helplinePhone: string;
+  officialPortalUrl: string;
 }
 
 export interface ApiResponse<T> {

@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import type { Patient } from '../types';
-import { apiGetPatients, apiCreatePatient, apiDeletePatient } from '../services/api';
+import { apiGetPatients, apiCreatePatient, apiDeletePatient, apiVerifyPatientHealthId } from '../services/api';
 import { PatientDetailModal } from './PatientDetailModal';
+import { QRScannerModal } from './QRScannerModal';
 import { calculatePatientAlerts } from '../utils/alertEngine';
 import { formatOfficialHealthId } from '../utils/qrGenerator';
+import { useAuth } from '../context/AuthContext';
+import { type LanguageCode, TRANSLATIONS } from '../utils/i18n';
 
-export const PatientsView: React.FC = () => {
+interface PatientsViewProps {
+  currentLang?: LanguageCode;
+}
+
+export const PatientsView: React.FC<PatientsViewProps> = ({ currentLang = 'en' }) => {
+  const t = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const { hasRole } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +31,9 @@ export const PatientsView: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Verification Modal state
+  // Verification & Camera Scanner Modal states
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [verifyInput, setVerifyInput] = useState('');
   const [verifiedPatient, setVerifiedPatient] = useState<Patient | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -46,6 +56,8 @@ export const PatientsView: React.FC = () => {
     preferredLanguage: 'Bengali',
     emergencyContactName: '',
     emergencyContactPhone: '',
+    insuranceScheme: 'AWAZ Health Insurance Scheme for Interstate Guest Workers',
+    insuranceCardNumber: '',
   });
 
   const loadPatients = async () => {
@@ -54,6 +66,20 @@ export const PatientsView: React.FC = () => {
     const res = await apiGetPatients();
     if (res.success && res.data) {
       setPatients(res.data);
+
+      // Check if URL has a ?verify= or ?healthId= parameter from direct camera QR scan
+      const params = new URLSearchParams(window.location.search);
+      const verifyQuery = (params.get('verify') || params.get('healthId') || '').trim().toLowerCase();
+      if (verifyQuery) {
+        const found = res.data.find((p) => {
+          const pId = p.healthId.toLowerCase();
+          const pOfficial = formatOfficialHealthId(p.healthId, p.createdAt).toLowerCase();
+          return pId === verifyQuery || pOfficial === verifyQuery || pId.includes(verifyQuery) || pOfficial.includes(verifyQuery);
+        });
+        if (found) {
+          setSelectedPatientId(found.id);
+        }
+      }
     } else {
       setError(res.error || 'Failed to load patients from database.');
     }
@@ -89,6 +115,8 @@ export const PatientsView: React.FC = () => {
       preferredLanguage: 'Bengali',
       emergencyContactName: '',
       emergencyContactPhone: '',
+      insuranceScheme: 'AWAZ Health Insurance Scheme for Interstate Guest Workers',
+      insuranceCardNumber: `AWAZ-2026-KL-${Math.floor(10000 + Math.random() * 90000)}`,
     });
     setAddError(null);
     setShowAddModal(true);
@@ -142,24 +170,42 @@ export const PatientsView: React.FC = () => {
     }
   };
 
-  const handleVerifyHealthId = (e: React.FormEvent) => {
+  const handleVerifyHealthId = async (e: React.FormEvent) => {
     e.preventDefault();
     setVerifyError(null);
     setVerifiedPatient(null);
 
-    const query = verifyInput.trim().toLowerCase();
+    const query = verifyInput.trim();
     if (!query) return;
 
-    const match = patients.find((p) => {
-      const pId = p.healthId.toLowerCase();
-      const pOfficial = formatOfficialHealthId(p.healthId, p.createdAt).toLowerCase();
-      return pId === query || pOfficial === query || pId.includes(query) || pOfficial.includes(query);
-    });
-
-    if (match) {
-      setVerifiedPatient(match);
+    // Use backend verify endpoint
+    const res = await apiVerifyPatientHealthId(query);
+    if (res.success && res.data) {
+      setVerifiedPatient(res.data);
     } else {
-      setVerifyError(`No registered worker record found matching Health ID "${verifyInput}".`);
+      setVerifyError(res.error || `No registered worker record found matching Health ID "${verifyInput}".`);
+    }
+  };
+
+  const handleCameraScanSuccess = async (decodedText: string) => {
+    setShowCameraScanner(false);
+    // Parse decoded text (could be full verification URL or raw ID)
+    let extractedId = decodedText.trim();
+    if (extractedId.includes('?verify=')) {
+      extractedId = extractedId.split('?verify=')[1].split('&')[0];
+    } else if (extractedId.includes('?healthId=')) {
+      extractedId = extractedId.split('?healthId=')[1].split('&')[0];
+    }
+
+    const res = await apiVerifyPatientHealthId(decodeURIComponent(extractedId));
+    if (res.success && res.data) {
+      setSelectedPatientId(res.data.id);
+      setToastMessage(`Camera QR Verified: ${res.data.fullName} (${res.data.healthId})`);
+      setTimeout(() => setToastMessage(null), 5000);
+    } else {
+      setVerifyInput(extractedId);
+      setShowVerifyModal(true);
+      setVerifyError(`Scanned code "${extractedId}" was not found in registered records.`);
     }
   };
 
@@ -215,9 +261,9 @@ export const PatientsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white px-4 py-2.5 rounded-xl border border-[#DDE8E8] shadow-xs">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-[#16313A] tracking-tight">Migrant Workers</h2>
+            <h2 className="text-base sm:text-lg font-bold text-[#16313A] tracking-tight">{t.patients}</h2>
             <span className="px-2 py-0.5 bg-[#E8F8F6] text-[#00A99D] text-[11px] font-semibold rounded-full border border-[#00A99D]/30 font-mono">
-              {patients.length} Registered
+              {patients.length} {t.registeredWorkers}
             </span>
           </div>
           <p className="text-[#61747B] text-[11px]">
@@ -225,69 +271,89 @@ export const PatientsView: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Live Camera QR Scanner Trigger */}
+          <button
+            onClick={() => setShowCameraScanner(true)}
+            className="px-3.5 py-1.5 bg-[#E8F8F6] hover:bg-[#d5f3ee] text-[#00A99D] rounded-lg text-xs font-semibold border border-[#00A99D]/30 transition-colors flex items-center gap-1.5 shadow-xs"
+          >
+            <span>📷</span>
+            <span>Scan Camera QR</span>
+          </button>
+
           <button
             onClick={() => setShowVerifyModal(true)}
-            className="px-3 py-1.5 bg-white hover:bg-[#F0FAF8] text-[#00A99D] font-semibold rounded-lg text-xs border border-[#00A99D] transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+            className="px-3.5 py-1.5 bg-white hover:bg-[#F0FAF8] text-[#16313A] rounded-lg text-xs font-semibold border border-[#DDE8E8] transition-colors flex items-center gap-1.5 shadow-xs"
           >
-            <span>📱 Verify Health ID</span>
+            <span>🔍</span>
+            <span>Verify ID</span>
           </button>
+
           <button
             onClick={handleOpenAddModal}
-            className="px-3.5 py-1.5 bg-[#00A99D] hover:bg-[#008F83] text-white font-semibold rounded-lg text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 whitespace-nowrap"
+            className="px-3.5 py-1.5 bg-[#00A99D] hover:bg-[#008F83] text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
           >
-            <span>+ Add New Patient</span>
+            <span>+</span>
+            <span>{t.addNewPatient}</span>
           </button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-[#DDE8E8] shadow-xs">
-        <div className="flex flex-col sm:flex-row flex-1 gap-2 items-center">
-          <div className="relative flex-1 w-full">
+      {/* Filter and Search Bar */}
+      <div className="bg-white p-3 sm:p-4 rounded-xl border border-[#DDE8E8] shadow-xs space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+          {/* Search Box */}
+          <div className="md:col-span-6 relative">
             <input
               type="text"
-              placeholder="Search worker name, Health ID (e.g. KMH-2026-00001), or district..."
+              placeholder={t.searchWorkerPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white text-[#16313A] placeholder-[#61747B] pl-8 pr-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D]"
+              className="w-full bg-[#F8FAFA] text-[#16313A] placeholder-[#61747B] text-xs px-3.5 py-2 rounded-xl border border-[#DDE8E8] focus:outline-none focus:border-[#00A99D]"
             />
-            <span className="absolute left-2.5 top-2 text-[#61747B] text-xs">🔍</span>
           </div>
 
-          <select
-            value={selectedState}
-            onChange={(e) => setSelectedState(e.target.value)}
-            className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[140px]"
-          >
-            <option value="">All States</option>
-            {statesOfOrigin.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
+          {/* State Filter */}
+          <div className="md:col-span-3">
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="w-full bg-[#F8FAFA] text-[#16313A] text-xs px-3 py-2 rounded-xl border border-[#DDE8E8] focus:outline-none focus:border-[#00A99D]"
+            >
+              <option value="">{t.allStates}</option>
+              {statesOfOrigin.map((state) => (
+                <option key={state} value={state}>
+                  {state}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={alertFilter}
-            onChange={(e) => setAlertFilter(e.target.value)}
-            className="bg-white text-[#16313A] px-3 py-1.5 rounded-lg border border-[#DDE8E8] text-xs focus:outline-none focus:border-[#00A99D] min-w-[160px]"
-          >
-            <option value="ALL">All Risk Statuses</option>
-            <option value="ALERTS_ONLY">⚠️ Active Alerts</option>
-            <option value="HIGH_ONLY">🔴 High Severity</option>
-          </select>
+          {/* Alert Filter */}
+          <div className="md:col-span-3">
+            <select
+              value={alertFilter}
+              onChange={(e) => setAlertFilter(e.target.value)}
+              className="w-full bg-[#F8FAFA] text-[#16313A] text-xs px-3 py-2 rounded-xl border border-[#DDE8E8] focus:outline-none focus:border-[#00A99D]"
+            >
+              <option value="ALL">{t.allStatuses}</option>
+              <option value="ALERTS_ONLY">⚠️ Active Clinical Alerts</option>
+              <option value="HIGH_ONLY">🔴 High Severity Alerts Only</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between md:justify-end gap-2 pt-1 md:pt-0 border-t md:border-t-0 border-[#DDE8E8]">
-          <span className="text-[11px] text-[#61747B] font-mono whitespace-nowrap">
-            Showing {filteredPatients.length} of {patients.length} workers
-          </span>
+        {/* Active Filters / Reset */}
+        <div className="flex items-center justify-between text-xs text-[#61747B] pt-1">
+          <div>
+            Showing <strong className="text-[#16313A]">{filteredPatients.length}</strong> of{' '}
+            <strong className="text-[#16313A]">{patients.length}</strong> registered workers
+          </div>
           {(searchQuery || selectedState || alertFilter !== 'ALL') && (
             <button
               onClick={handleResetFilters}
-              className="px-2 py-0.5 bg-[#F8FAFA] text-[#61747B] hover:text-[#16313A] rounded-md text-[11px] font-medium border border-[#DDE8E8] hover:bg-[#F0FAF8] transition-colors"
+              className="text-[#00A99D] hover:text-[#008F83] text-[11px] font-medium border border-[#DDE8E8] hover:bg-[#F0FAF8] px-2 py-0.5 rounded transition-colors"
             >
-              Reset
+              Reset Filters
             </button>
           )}
         </div>
@@ -327,7 +393,7 @@ export const PatientsView: React.FC = () => {
         </div>
       )}
 
-      {/* 3 Boxes Perfectly Fit on Screen 1 — Row 2 Starts Strictly Below the Viewport Fold */}
+      {/* Patient Cards Grid */}
       {!loading && !error && filteredPatients.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5 pt-1">
           {filteredPatients.map((patient) => {
@@ -390,13 +456,15 @@ export const PatientsView: React.FC = () => {
                     <span>View Health Record</span>
                   </button>
 
-                  <button
-                    onClick={() => setDeleteTarget({ id: patient.id, name: patient.fullName })}
-                    title="Delete record"
-                    className="p-1.5 text-[#61747B] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors text-xs"
-                  >
-                    🗑️
-                  </button>
+                  {hasRole(['ADMIN']) && (
+                    <button
+                      onClick={() => setDeleteTarget({ id: patient.id, name: patient.fullName })}
+                      title="Delete record"
+                      className="p-1.5 text-[#61747B] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors text-xs"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -411,9 +479,9 @@ export const PatientsView: React.FC = () => {
             <div className="flex justify-between items-center border-b border-[#DDE8E8] pb-3">
               <div>
                 <h3 className="text-lg font-bold text-[#16313A] flex items-center gap-2">
-                  <span>📱 Scan & Verify Digital Health ID</span>
+                  <span>📱 Verify Digital Health ID</span>
                 </h3>
-                <p className="text-xs text-[#61747B]">Enter or scan worker Portable Health ID (e.g. KMH-2026-00001)</p>
+                <p className="text-xs text-[#61747B]">Enter worker Portable Health ID (e.g. KMH-2026-00001)</p>
               </div>
               <button
                 onClick={() => {
@@ -486,6 +554,13 @@ export const PatientsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Live Camera QR Scanner Modal */}
+      <QRScannerModal
+        isOpen={showCameraScanner}
+        onClose={() => setShowCameraScanner(false)}
+        onScanSuccess={handleCameraScanSuccess}
+      />
 
       {/* Patient Detail Modal */}
       {selectedPatientId && (
@@ -642,29 +717,6 @@ export const PatientsView: React.FC = () => {
                     placeholder="+91 98765 43210"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-white text-[#16313A] px-3.5 py-2 rounded-xl border border-[#DDE8E8] focus:outline-none focus:border-[#00A99D]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[#16313A] font-medium mb-1">Emergency Contact Name</label>
-                  <input
-                    type="text"
-                    placeholder="Next of Kin Name"
-                    value={formData.emergencyContactName}
-                    onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                    className="w-full bg-white text-[#16313A] px-3.5 py-2 rounded-xl border border-[#DDE8E8] focus:outline-none focus:border-[#00A99D]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#16313A] font-medium mb-1">Emergency Phone</label>
-                  <input
-                    type="text"
-                    placeholder="+91..."
-                    value={formData.emergencyContactPhone}
-                    onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
                     className="w-full bg-white text-[#16313A] px-3.5 py-2 rounded-xl border border-[#DDE8E8] focus:outline-none focus:border-[#00A99D]"
                   />
                 </div>
